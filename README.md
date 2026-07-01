@@ -12,10 +12,7 @@ python -m pip install -U pip
 python -m pip install -e ".[plot]"
 ```
 
-## Reproduce Paper Outputs
-
-The default artifact path uses the checked-in paper data and regenerates the
-paper-facing terminal table and figures:
+## Reproduce Outputs
 
 ```bash
 python experiment/reproduce_all.py
@@ -27,9 +24,8 @@ Generated files are written under:
 results/reproduced/
 ```
 
-The default command rebuilds the paper-facing rule-quality table, cleaning
-figure, runtime/storage table, and scalability figures from checked-in paper
-data.
+The default command rebuilds rule-quality table, cleaning 
+figure, runtime/storage table, and scalability figures.
 
 ## Run SpanDC Directly
 
@@ -39,8 +35,8 @@ After setup and raw dataset placement, run the packaged SpanDC showcase command:
 python -m spandc
 ```
 
-This runs SpanDC on MoCap-5 with 5 fixed segments, maximum predicate length 3,
-and only same-attribute predicate groups. It writes:
+This runs SpanDC on MoCap-5 , maximum predicate length 3,
+It writes:
 
 ```text
 results/reproduced/spandc_demo/rulestore.csv
@@ -55,7 +51,7 @@ spandc
 
 ## Query RuleStore Rules
 
-To query minimal valid rules on a MoCap-5 interval, pass the inclusive left and
+To query minimal valid rules on a interval, pass the inclusive left and
 right tuple indices:
 
 ```bash
