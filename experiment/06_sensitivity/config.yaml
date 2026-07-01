@@ -1,0 +1,6 @@
+module: 06_sensitivity
+output_type: figures
+data_dir: results/paper/06_sensitivity/data
+removed_metrics:
+  - memory
+

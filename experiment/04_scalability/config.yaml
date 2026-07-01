@@ -1,0 +1,4 @@
+module: 04_scalability
+output_type: figures
+data: results/paper/04_scalability/data/scalability_runtime.csv
+

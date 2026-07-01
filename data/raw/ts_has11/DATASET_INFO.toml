@@ -1,0 +1,77 @@
+schema_version = 1
+dataset_id = "ts_has11"
+data_kind = "time_series"
+data_file = "ts_11.csv"
+inspection_date = "2026-06-22"
+inspection_basis = ["CSV header", "row count", "first 5 data rows", "activity/change_point_flag scan"]
+
+[statistics]
+tuple_count = 3423
+attribute_count = 14
+usable_attribute_count = 14
+numeric_attribute_count = 13
+character_attribute_count = 1
+unknown_attribute_count = 0
+
+[order]
+natural_order = true
+order_keys = ["time_index"]
+time_attribute = "time_sec"
+sampling_rate_hz = 50
+
+[attributes]
+numeric = [
+  "ts_id",
+  "time_index",
+  "time_sec",
+  "x-acc",
+  "y-acc",
+  "z-acc",
+  "x-gyro",
+  "y-gyro",
+  "z-gyro",
+  "x-mag",
+  "y-mag",
+  "z-mag",
+  "change_point_flag",
+]
+character = [
+  "activity",
+]
+unknown = []
+ignored = []
+
+[predicate_space]
+candidate_attributes = [
+  "x-acc",
+  "y-acc",
+  "z-acc",
+  "x-gyro",
+  "y-gyro",
+  "z-gyro",
+  "x-mag",
+  "y-mag",
+  "z-mag",
+]
+cross_attribute_comparison_groups = [
+  ["x-acc", "y-acc", "z-acc"],
+  ["x-gyro", "y-gyro", "z-gyro"],
+  ["x-mag", "y-mag", "z-mag"],
+]
+label_attributes = [
+  "activity",
+  "change_point_flag",
+]
+excluded_attributes = [
+  "ts_id",
+  "time_index",
+  "time_sec",
+  "activity",
+  "change_point_flag",
+]
+
+[notes]
+items = [
+  "Rows are one processed HAS-style time series sampled at 50 Hz.",
+  "Observed activity transitions and change_point_flag indices are 1513 and 1935.",
+]

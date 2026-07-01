@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spandc-artifact"
+version = "0.1.0"
+description = "SpanDC paper artifact"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy",
+]
+
+[project.optional-dependencies]
+plot = [
+  "matplotlib",
+]
+accel = [
+  "pyroaring",
+]
+
+[tool.setuptools]
+py-modules = [
+  "evidence",
+  "frontier",
+  "mining",
+  "oracle",
+  "predicates",
+  "regions",
+  "rulestore",
+  "set_trie",
+  "spandc",
+  "spandc_query",
+  "upper_layer",
+]
+
+[project.scripts]
+spandc = "spandc:main"
+spandc-query = "spandc_query:main"
+
+[tool.setuptools.package-dir]
+"" = "src"

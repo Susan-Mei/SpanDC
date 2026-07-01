@@ -1,0 +1,92 @@
+schema_version = 1
+dataset_id = "ts_art"
+data_kind = "time_series"
+data_file = "data_labeled.csv"
+inspection_date = "2026-06-20"
+inspection_basis = ["CSV header", "first 5 data rows", "row count"]
+
+[statistics]
+tuple_count = 31392
+attribute_count = 24
+usable_attribute_count = 24
+numeric_attribute_count = 24
+character_attribute_count = 0
+unknown_attribute_count = 0
+
+[order]
+natural_order = true
+order_keys = []
+implicit_order = "file_row_order"
+
+[attributes]
+numeric = [
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "16",
+  "17",
+  "18",
+  "19",
+  "20",
+  "21",
+  "22",
+  "23",
+]
+character = []
+unknown = []
+ignored = []
+
+[predicate_space]
+# User-owned: edit this list. Attributes here only produce self-comparison predicates by default.
+candidate_attributes = [
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "16",
+  "17",
+  "18",
+  "19",
+  "20",
+  "21",
+  "22",
+]
+# Cross-attribute comparisons are disabled unless explicitly grouped here.
+# Example: [["0", "1", "2"]]
+cross_attribute_comparison_groups = []
+label_attributes = [
+  "23",
+]
+excluded_attributes = [
+  "23",
+]
+
+[notes]
+items = [
+  "Column 23 is listed as a label attribute and excluded from the predicate space.",
+]

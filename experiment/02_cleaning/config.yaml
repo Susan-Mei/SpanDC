@@ -1,0 +1,13 @@
+module: 02_cleaning
+output_type: figure
+data_dir: results/paper/02_cleaning/data
+figure_dir: results/paper/02_cleaning/figures
+default_mode: checked_in_data
+metrics:
+  - f1
+  - auprc
+corruption_protocol: shared_cell_perturbation
+seed: 0
+paper_figure_datasets:
+  - mocap7
+  - room_first1000
