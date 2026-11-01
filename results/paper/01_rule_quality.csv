@@ -1,0 +1,37 @@
+method,d_max,family,mean_rule_count,atomicity_pass_rate_percent
+SpanDC,2,HAS,53.6,85.2
+SpanDC,2,MoCap,14.1,82.8
+SpanDC,2,Art,8.5,94.7
+SpanDC,2,Occupancy,1.7,86.7
+SpanDC,3,HAS,342.1,77.8
+SpanDC,3,MoCap,67.0,75.9
+SpanDC,3,Art,18.0,42.1
+SpanDC,3,Occupancy,12.0,61.0
+FW-DC,2,HAS,3.5,0.0
+FW-DC,2,MoCap,13.0,33.8
+FW-DC,2,Art,,
+FW-DC,2,Occupancy,6.0,100.0
+FW-DC,3,HAS,66.5,0.8
+FW-DC,3,MoCap,159.9,4.1
+FW-DC,3,Art,23.5,0.0
+FW-DC,3,Occupancy,38.7,97.8
+Global tDC,2,HAS,,
+Global tDC,2,MoCap,,
+Global tDC,2,Art,,
+Global tDC,2,Occupancy,,
+Global tDC,3,HAS,,
+Global tDC,3,MoCap,,
+Global tDC,3,Art,,
+Global tDC,3,Occupancy,1.0,100.0
+Global tDC,4,HAS,9.2,100.0
+Global tDC,4,MoCap,0.1,100.0
+Global tDC,4,Art,,
+Global tDC,4,Occupancy,1.0,100.0
+Global tDC,5,HAS,264.4,84.2
+Global tDC,5,MoCap,1.7,46.7
+Global tDC,5,Art,,
+Global tDC,5,Occupancy,1.0,100.0
+Global tDC,6,HAS,1991.6,56.1
+Global tDC,6,MoCap,40.1,24.4
+Global tDC,6,Art,,
+Global tDC,6,Occupancy,1.0,100.0

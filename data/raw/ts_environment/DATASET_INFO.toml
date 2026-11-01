@@ -2,16 +2,6 @@ schema_version = 1
 dataset_id = "ts_environment"
 data_kind = "time_series"
 data_file = "iot_telemetry_data.csv"
-inspection_date = "2026-06-26"
-inspection_basis = ["CSV header", "row count", "exp_nlp.md formal experiment plan"]
-
-[statistics]
-tuple_count = 405184
-attribute_count = 9
-usable_attribute_count = 9
-numeric_attribute_count = 6
-character_attribute_count = 3
-unknown_attribute_count = 0
 
 [order]
 natural_order = true
@@ -28,9 +18,3 @@ candidate_attributes = ["device", "co", "humidity", "light", "lpg", "motion", "s
 cross_attribute_comparison_groups = []
 label_attributes = []
 excluded_attributes = ["ts"]
-
-[notes]
-items = [
-  "The timestamp column ts is used only as order metadata and is excluded from predicate construction.",
-  "Boolean light and motion are treated as categorical candidate attributes.",
-]

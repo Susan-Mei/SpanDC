@@ -2,16 +2,6 @@ schema_version = 1
 dataset_id = "ts_room_first1000"
 data_kind = "time_series"
 data_file = "Occupancy_first1000.csv"
-inspection_date = "2026-06-23"
-inspection_basis = ["Generated for 05 multidataset latest protocol", "CSV header", "row count"]
-
-[statistics]
-tuple_count = 1000
-attribute_count = 7
-usable_attribute_count = 7
-numeric_attribute_count = 5
-character_attribute_count = 2
-unknown_attribute_count = 0
 
 [order]
 natural_order = true
@@ -24,12 +14,7 @@ unknown = []
 ignored = []
 
 [predicate_space]
-candidate_attributes = ["Temperature", "Humidity", "Light", "CO2", "HumidityRatio", "Occupancy"]
+candidate_attributes = ["Temperature", "Humidity", "Light", "CO2", "HumidityRatio"]
 cross_attribute_comparison_groups = []
-label_attributes = []
-excluded_attributes = ["date"]
-
-[notes]
-items = [
-  "Cross-attribute comparisons are disabled for this experiment view.",
-]
+label_attributes = ["Occupancy"]
+excluded_attributes = ["date", "Occupancy"]

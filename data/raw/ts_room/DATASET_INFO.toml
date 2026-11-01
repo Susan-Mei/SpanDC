@@ -2,16 +2,6 @@ schema_version = 1
 dataset_id = "ts_room"
 data_kind = "time_series"
 data_file = "Occupancy.csv"
-inspection_date = "2026-06-20"
-inspection_basis = ["CSV header", "first 5 data rows", "row count"]
-
-[statistics]
-tuple_count = 20560
-attribute_count = 7
-usable_attribute_count = 7
-numeric_attribute_count = 5
-character_attribute_count = 2
-unknown_attribute_count = 0
 
 [order]
 natural_order = true
@@ -33,25 +23,16 @@ unknown = []
 ignored = []
 
 [predicate_space]
-# User-owned: edit this list. Attributes here only produce self-comparison predicates by default.
 candidate_attributes = [
   "Temperature",
   "Humidity",
   "Light",
   "CO2",
   "HumidityRatio",
-  "Occupancy",
 ]
-# Cross-attribute comparisons are disabled unless explicitly grouped here.
-# Example: [["Temperature", "Humidity"], ["CO2", "HumidityRatio"]]
 cross_attribute_comparison_groups = []
-label_attributes = []
+label_attributes = ["Occupancy"]
 excluded_attributes = [
   "date",
-]
-
-[notes]
-items = [
-  "No local README exists in the exp folder. date is treated as the natural time order key.",
-  "Occupancy is a 0/1 categorical candidate attribute for mixed tDC4 tests.",
+  "Occupancy",
 ]

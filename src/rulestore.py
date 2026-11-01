@@ -1,9 +1,4 @@
-"""RuleStore mining from DC frontiers.
-
-This module implements the frontier-direct RuleStore path:
-`DC -> inclusion-maximal minimal intervals`. It is intentionally separate from
-`mining.py` so the existing full minimal-region path remains unchanged.
-"""
+"""RuleStore mining from DC frontiers."""
 
 from __future__ import annotations
 
@@ -16,7 +11,6 @@ from frontier import Frontier, FrontierStore, RLE_MERGE_MIN_N, expand_frontier, 
 from mining import (
     SupEvidenceCache,
     all_direct_subset_frontiers_available,
-    build_mining_stats,
     compute_dc_frontier_from_sup_evidence,
     is_valid_everywhere,
 )
@@ -97,28 +91,8 @@ class RuleStoreStats:
     sup_query_seconds: float
     frontier_collect_seconds: float
     frontier_merge_seconds: float
-    frontier_expand_seconds: float
-    validity_check_seconds: float
     frontier_merge_early_stop_count: int
     frontier_merge_skipped_evidence_total: int
-    provenance_attempt_count: int
-    provenance_success_count: int
-    provenance_reused_position_count: int
-    provenance_recompute_position_count: int
-    provenance_reused_run_count: int
-    provenance_recompute_run_count: int
-    aggregate_index_build_seconds: float
-    aggregate_index_node_count: int
-    aggregate_index_frontier_run_count: int
-    aggregate_query_count: int
-    aggregate_cover_node_total: int
-    aggregate_cover_node_mean: float
-    aggregate_cover_node_used_total: int
-    aggregate_fallback_count: int
-    evidence_before_dominance_count: int
-    evidence_after_dominance_count: int
-    dominated_same_frontier_count: int
-    dominated_frontier_leq_count: int
     sup_evidence_query_count: int
     sup_evidence_cache_hit_count: int
     sup_evidence_parent_child_reuse_count: int
@@ -355,7 +329,7 @@ def _level_search_worker_count(
         return 1
     if level_candidate_count < parallel_min_candidates or missing_sup_count < 2:
         return 1
-    # ponytail: only thread the NumPy dense frontier path; RLE merges are Python-bound.
+    # Threads help only on the NumPy dense-frontier path.
     if frontier_np is None or n >= RLE_MERGE_MIN_N:
         return 1
     return min(search_workers, missing_sup_count)
@@ -689,7 +663,11 @@ def _build_rulestore_stats(
     parallel_level_count: int = 0,
     parallel_candidate_count: int = 0,
 ) -> RuleStoreStats:
-    base = build_mining_stats(
+    dc_run_counts = [len(frontier) for frontier in dc_frontiers.values()]
+    dc_run_total = sum(dc_run_counts)
+    interval_counts = [len(intervals) for intervals in rule_store.values()]
+    interval_total = sum(interval_counts)
+    return RuleStoreStats(
         candidates=candidates,
         candidate_level_count=candidate_level_count,
         candidate_level_sizes=candidate_level_sizes,
@@ -703,75 +681,32 @@ def _build_rulestore_stats(
         valid_everywhere_trie_size=valid_everywhere_trie_size,
         frontier_store_intern_requests=frontier_store.intern_requests,
         frontier_store_unique_count=frontier_store.unique_count,
-        dc_frontiers=dc_frontiers,
-        regions={},
+        dc_frontier_run_count=dc_run_total,
+        dc_frontier_run_min=min(dc_run_counts, default=0),
+        dc_frontier_run_max=max(dc_run_counts, default=0),
+        dc_frontier_run_mean=dc_run_total / len(dc_run_counts) if dc_run_counts else 0.0,
+        unique_dc_frontier_count=len(set(dc_frontiers.values())),
         dense_frontier_count=frontier_store.dense_count,
-        sup_evidence_cache=sup_evidence_cache,
-        evidence_index=evidence_index,
-        frontier_store=frontier_store,
-    )
-    interval_counts = [len(intervals) for intervals in rule_store.values()]
-    interval_total = sum(interval_counts)
-    return RuleStoreStats(
-        candidates=base.candidates,
-        candidate_level_count=base.candidate_level_count,
-        candidate_level_sizes=base.candidate_level_sizes,
-        valid_everywhere=base.valid_everywhere,
-        skipped_by_valid_everywhere_subset=base.skipped_by_valid_everywhere_subset,
-        stopped_by_valid_everywhere_count=base.stopped_by_valid_everywhere_count,
-        expansion_candidate_count=base.expansion_candidate_count,
-        expansion_pruned_by_valid_everywhere_subset=base.expansion_pruned_by_valid_everywhere_subset,
-        expansion_pruned_by_no_effect=base.expansion_pruned_by_no_effect,
-        expansion_pruned_by_missing_direct_subset=base.expansion_pruned_by_missing_direct_subset,
-        valid_everywhere_trie_size=base.valid_everywhere_trie_size,
-        frontier_store_intern_requests=base.frontier_store_intern_requests,
-        frontier_store_unique_count=base.frontier_store_unique_count,
-        dc_frontier_run_count=base.dc_frontier_run_count,
-        dc_frontier_run_min=base.dc_frontier_run_min,
-        dc_frontier_run_max=base.dc_frontier_run_max,
-        dc_frontier_run_mean=base.dc_frontier_run_mean,
-        unique_dc_frontier_count=base.unique_dc_frontier_count,
-        dense_frontier_count=base.dense_frontier_count,
-        rle_frontier_count=base.rle_frontier_count,
-        frontier_dense_to_rle_count=base.frontier_dense_to_rle_count,
-        frontier_rle_to_dense_count=base.frontier_rle_to_dense_count,
-        frontier_by_sup_mask_hit_count=base.frontier_by_sup_mask_hit_count,
-        frontier_by_sup_mask_miss_count=base.frontier_by_sup_mask_miss_count,
-        frontier_merge_call_count=base.frontier_merge_call_count,
-        frontier_merge_evidence_total=base.frontier_merge_evidence_total,
-        frontier_merge_dense_cell_total=base.frontier_merge_dense_cell_total,
-        frontier_merge_rle_run_total=base.frontier_merge_rle_run_total,
-        sup_query_seconds=base.sup_query_seconds,
-        frontier_collect_seconds=base.frontier_collect_seconds,
-        frontier_merge_seconds=base.frontier_merge_seconds,
-        frontier_expand_seconds=base.frontier_expand_seconds,
-        validity_check_seconds=base.validity_check_seconds,
-        frontier_merge_early_stop_count=base.frontier_merge_early_stop_count,
-        frontier_merge_skipped_evidence_total=base.frontier_merge_skipped_evidence_total,
-        provenance_attempt_count=base.provenance_attempt_count,
-        provenance_success_count=base.provenance_success_count,
-        provenance_reused_position_count=base.provenance_reused_position_count,
-        provenance_recompute_position_count=base.provenance_recompute_position_count,
-        provenance_reused_run_count=base.provenance_reused_run_count,
-        provenance_recompute_run_count=base.provenance_recompute_run_count,
-        aggregate_index_build_seconds=base.aggregate_index_build_seconds,
-        aggregate_index_node_count=base.aggregate_index_node_count,
-        aggregate_index_frontier_run_count=base.aggregate_index_frontier_run_count,
-        aggregate_query_count=base.aggregate_query_count,
-        aggregate_cover_node_total=base.aggregate_cover_node_total,
-        aggregate_cover_node_mean=base.aggregate_cover_node_mean,
-        aggregate_cover_node_used_total=base.aggregate_cover_node_used_total,
-        aggregate_fallback_count=base.aggregate_fallback_count,
-        evidence_before_dominance_count=base.evidence_before_dominance_count,
-        evidence_after_dominance_count=base.evidence_after_dominance_count,
-        dominated_same_frontier_count=base.dominated_same_frontier_count,
-        dominated_frontier_leq_count=base.dominated_frontier_leq_count,
-        sup_evidence_query_count=base.sup_evidence_query_count,
-        sup_evidence_cache_hit_count=base.sup_evidence_cache_hit_count,
-        sup_evidence_parent_child_reuse_count=base.sup_evidence_parent_child_reuse_count,
-        sup_evidence_empty_count=base.sup_evidence_empty_count,
-        inverted_index_predicate_count=base.inverted_index_predicate_count,
-        inverted_index_evidence_count=base.inverted_index_evidence_count,
+        rle_frontier_count=len(set(dc_frontiers.values())),
+        frontier_dense_to_rle_count=frontier_store.dense_to_rle_count,
+        frontier_rle_to_dense_count=frontier_store.rle_to_dense_count,
+        frontier_by_sup_mask_hit_count=frontier_store.frontier_by_sup_mask_hit_count,
+        frontier_by_sup_mask_miss_count=frontier_store.frontier_by_sup_mask_miss_count,
+        frontier_merge_call_count=frontier_store.frontier_merge_call_count,
+        frontier_merge_evidence_total=frontier_store.frontier_merge_evidence_total,
+        frontier_merge_dense_cell_total=frontier_store.frontier_merge_dense_cell_total,
+        frontier_merge_rle_run_total=frontier_store.frontier_merge_rle_run_total,
+        sup_query_seconds=sup_evidence_cache.query_seconds,
+        frontier_collect_seconds=frontier_store.frontier_collect_seconds,
+        frontier_merge_seconds=frontier_store.frontier_merge_seconds,
+        frontier_merge_early_stop_count=frontier_store.frontier_merge_early_stop_count,
+        frontier_merge_skipped_evidence_total=frontier_store.frontier_merge_skipped_evidence_total,
+        sup_evidence_query_count=sup_evidence_cache.query_count,
+        sup_evidence_cache_hit_count=sup_evidence_cache.cache_hit_count,
+        sup_evidence_parent_child_reuse_count=sup_evidence_cache.parent_child_reuse_count,
+        sup_evidence_empty_count=sum(1 for value in sup_evidence_cache.cache.values() if value == 0),
+        inverted_index_predicate_count=len(evidence_index.inv_pred),
+        inverted_index_evidence_count=len(evidence_index.evidence_masks),
         rulestore_dc_count=len(rule_store),
         rulestore_interval_count=interval_total,
         rulestore_interval_min=min(interval_counts, default=0),

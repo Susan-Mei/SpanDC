@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "spandc-artifact"
 version = "0.1.0"
-description = "SpanDC paper artifact"
+description = "SpanDC core implementation and paper-figure reproduction artifact"
 requires-python = ">=3.11"
 dependencies = [
   "numpy",
@@ -22,21 +22,32 @@ accel = [
 [tool.setuptools]
 py-modules = [
   "evidence",
+  "artifact_io",
+  "cleaning",
+  "core_config",
   "frontier",
   "mining",
-  "oracle",
   "predicates",
-  "regions",
   "rulestore",
+  "rule_segmentation",
+  "profile_weights",
+  "rule_greedy",
+  "summary_selection",
+  "greedy_summary",
+  "semantic_summary",
   "set_trie",
   "spandc",
+  "spandc_clean",
   "spandc_query",
-  "upper_layer",
+  "spandc_segment",
 ]
 
 [project.scripts]
 spandc = "spandc:main"
+spandc-mine = "spandc:main"
 spandc-query = "spandc_query:main"
+spandc-segment = "spandc_segment:main"
+spandc-clean = "spandc_clean:main"
 
 [tool.setuptools.package-dir]
 "" = "src"

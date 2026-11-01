@@ -1,101 +1,106 @@
-# SpanDC Artifact
+# SpanDC
 
-This repository contains the SpanDC source code and the paper-facing artifact
-data needed to reproduce the experiment tables and figures.
+This repository releases the SpanDC core for span-local temporal denial
+constraints: mining, interval query, semantic segmentation, and rule-based dirty
+cell localization. A separate reproduction module reproduces the paper results.
 
-## Setup
+## Install
+
+Python 3.11 is the reference environment.
 
 ```bash
 python3.11 -m venv .venv
 . .venv/bin/activate
 python -m pip install -U pip
+python -m pip install -e .
+```
+
+`pyroaring` is an optional mining acceleration backend:
+`python -m pip install -e ".[accel]"`.
+
+## Four core modules
+
+The scripts below form a pipeline. Their default paths use the bundled
+1,000-row Occupancy view; `--row-limit 100` keeps this first run small.
+The shared pipeline parameters are available from each entry point's `--help`.
+Mining records them in `artifact.json`; query, segmentation, and cleaning
+validate that they match before running.
+
+### 01 Mining
+
+```bash
+python experiment/01_mining/run.py \
+  --dataset-info data/views/ts_room_first1000/DATASET_INFO.toml \
+  --row-limit 100
+```
+
+Mining writes `results/reproduced/01_mining/`:
+
+- `predicates.csv`: the fixed predicate space and tDC thresholds;
+- `rulestore.csv`: each rule's inclusion-maximal minimal-validity intervals;
+- `artifact.json`: row count and mining configuration needed downstream.
+
+### 02 Query
+
+```bash
+python experiment/02_query/run.py 0 79
+```
+
+The query interval is inclusive. The output
+`results/reproduced/02_query/query_rules.csv` contains the exact subset-minimal
+rules whose RuleStore intervals cover the requested interval.
+
+### 03 Segmentation
+
+```bash
+python experiment/03_segmentation/run.py
+```
+
+Segmentation builds fixed-width RuleStore profiles, selects boundaries with
+nested greedy splitting and elbow selection, and queries exact rules for each
+final span. It writes boundaries, interval rules, and the summary curve to
+`results/reproduced/03_segmentation/`.
+
+### 04 Cleaning
+
+```bash
+python experiment/04_cleaning/run.py \
+  --dataset-info data/views/ts_room_first1000/DATASET_INFO.toml \
+  --row-limit 100
+```
+
+For a same-schema dirty table, pass `--input-csv /path/to/dirty.csv`. The module
+loads the fixed predicates and segment rules, counts each cell's participation
+in violating tuple pairs, and writes the ranked `cell_scores.csv`. Input values
+are left unchanged.
+
+Installed command aliases are `spandc-mine` (also `spandc`), `spandc-query`,
+`spandc-segment`, and `spandc-clean`.
+
+## Paper-figure reproduction
+
+Install the plotting dependency and run:
+
+```bash
 python -m pip install -e ".[plot]"
+python reproduction/reproduce_all.py
 ```
 
-## Reproduce Outputs
+## Data
 
-```bash
-python experiment/reproduce_all.py
-```
+The repository includes a small Occupancy view for an end-to-end core run. The
+other raw datasets are not redistributed. Follow [data/README.md](data/README.md)
+for current upstream locations, access restrictions, expected filenames, and
+conversion notes.
 
-Generated files are written under:
+## Repository layout
 
 ```text
-results/reproduced/
-```
-
-The default command rebuilds rule-quality table, cleaning 
-figure, runtime/storage table, and scalability figures.
-
-## Run SpanDC Directly
-
-After setup and raw dataset placement, run the packaged SpanDC showcase command:
-
-```bash
-python -m spandc
-```
-
-This runs SpanDC on MoCap-5 , maximum predicate length 3,
-It writes:
-
-```text
-results/reproduced/spandc_demo/rulestore.csv
-results/reproduced/spandc_demo/interval_rules.csv
-```
-
-The same entry point is also available as:
-
-```bash
-spandc
-```
-
-## Query RuleStore Rules
-
-To query minimal valid rules on a interval, pass the inclusive left and
-right tuple indices:
-
-```bash
-python -m spandc_query 0 100
-```
-
-This writes:
-
-```text
-results/reproduced/spandc_query/query_rules.csv
-```
-
-The installed command is:
-
-```bash
-spandc-query 0 100
-```
-
-## Raw Dataset Sources
-
-Download the upstream datasets below and place or convert the listed local files
-under `data/raw/<dataset_id>/`.
-
-| Local dataset | Upstream source | Download entry |
-| --- | --- | --- |
-| `ts_art` | UCI Daily and Sports Activities | https://archive.ics.uci.edu/dataset/256/daily+and+sports+activities |
-| `ts_climate` | Daily Climate time series data | `kaggle datasets download -d sumanthvrao/daily-climate-time-series-data` |
-| `ts_environment` | Environmental Sensor Telemetry Data | `kaggle datasets download -d garystafford/environmental-sensor-data-132k` |
-| `ts_gas` | Gas sensor array temperature modulation | `kaggle datasets download -d javi2270784/gas-sensor-array-temperature-modulation` |
-| `ts_has11` | Human Activity Segmentation Challenge @ ECML/PKDD 2023 | https://www.kaggle.com/competitions/human-activity-segmentation-challenge/data |
-| `ts_mocap_5`, `ts_mocap_7` | CMU motion-capture segmentation data | https://graphics.cs.cmu.edu/projects/segmentation/ |
-| `ts_pump` | Pump sensor data | `kaggle datasets download -d nphantawee/pump-sensor-data` |
-| `ts_room` | UCI Occupancy Detection | https://archive.ics.uci.edu/dataset/357/occupancy+detection |
-
-The local file expected by each dataset is specified in
-`data/raw/<dataset_id>/DATASET_INFO.toml` under `data_file`.
-
-## Layout
-
-```text
-src/                  SpanDC core source code.
-experiment/           Paper artifact modules.
-baselines/            Baseline adapters used by the artifact modules.
-data/raw/             Raw datasets used by paper experiments.
-data/views/           Deterministic paper views.
-results/paper/        Checked-in paper data and reference figures.
+src/                  SpanDC mining, RuleStore, query, boundary, and cleaning code
+experiment/           four executable core-module entry points
+reproduction/         paper figure and table reproduction
+data/raw/              dataset metadata for user-supplied raw files
+data/views/            bundled deterministic sample view
+results/paper/         CSV-only observed paper data
+results/reproduced/    generated core/reproduction outputs (gitignored)
 ```

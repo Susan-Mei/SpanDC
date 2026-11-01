@@ -14,17 +14,7 @@ except ImportError:  # pragma: no cover - exercised through backend fallback.
     RoaringBitMap = None
 
 from frontier import Frontier, build_suffix_min_frontier
-from predicates import (
-    Predicate,
-    build_tdc4_homologous_groups,
-    build_tdc4_pair_evidence_mask_grouped,
-    build_group_truth_mask,
-    build_pair_evidence_mask,
-    group_mask,
-    group_predicates,
-)
-
-TDC4_CONTEXT_ROW_THRESHOLD = 1000
+from predicates import Predicate, build_tdc4_homologous_groups, group_mask, group_predicates
 
 
 @dataclass(frozen=True)
@@ -238,10 +228,6 @@ class RoaringColumnIndexes:
         return self.numeric_ranges[attr].greater_than(value)
 
 
-def has_roaring_backend() -> bool:
-    return RoaringBitMap is not None
-
-
 def build_roaring_column_indexes(
     rows: Sequence[Mapping[str, object]],
     predicates: Sequence[Predicate],
@@ -405,137 +391,7 @@ def build_evidence_index(catalog: EvidenceCatalog, predicate_count: int) -> Evid
     )
 
 
-def scan_sup_evidence_masks(catalog: EvidenceCatalog, candidate: int) -> tuple[int, ...]:
-    """Reference implementation for `SupEvidence(C)` by scanning all evidence."""
-
-    return tuple(evidence for evidence in catalog.evidence_masks if (evidence & candidate) == candidate)
-
-
-def build_evidence_catalog_explicit(
-    rows: Sequence[Mapping[str, object]],
-    predicates: Sequence[Predicate],
-    support_mode: str = "none",
-) -> EvidenceCatalog:
-    """Build frontiers by explicitly enumerating all pair evidence."""
-
-    _validate_support_mode(support_mode)
-    n = len(rows)
-    events: dict[int, dict[int, int]] = defaultdict(dict)
-    multiplicities: Counter[int] = Counter()
-    sidecar = EvidenceSupportSidecar(mode=support_mode) if support_mode != "none" else None
-    for left_index in range(n):
-        for right_index in range(left_index + 1, n):
-            evidence = build_pair_evidence_mask(rows, left_index, right_index, predicates)
-            multiplicities[evidence] += 1
-            if sidecar is not None:
-                if support_mode == "full":
-                    sidecar.add_pair(evidence, left_index, right_index)
-                else:
-                    sidecar.add_count(evidence, 1)
-            current = events[evidence].get(left_index, n)
-            if right_index < current:
-                events[evidence][left_index] = right_index
-
-    frontiers = {
-        evidence: build_suffix_min_frontier(n, left_events.items())
-        for evidence, left_events in events.items()
-    }
-    catalog = EvidenceCatalog(n=n, frontiers=frontiers, multiplicities=dict(multiplicities), support_sidecar=sidecar)
-    if sidecar is not None:
-        sidecar.finalize(catalog)
-    return catalog
-
-
-def build_evidence_catalog_tdc4_enum(
-    rows: Sequence[Mapping[str, object]],
-    predicates: Sequence[Predicate],
-    support_mode: str = "none",
-) -> EvidenceCatalog:
-    """Build tDC4 evidence with paper-style homologous predicate segments."""
-
-    _validate_support_mode(support_mode)
-    _validate_tdc4_mixed_predicates(predicates)
-    groups = tuple(group_predicates(predicates))
-    tdc4_groups = {group.group_id: group for group in build_tdc4_homologous_groups(predicates)}
-    n = len(rows)
-    events: dict[int, dict[int, int]] = defaultdict(dict)
-    multiplicities: Counter[int] = Counter()
-    sidecar = EvidenceSupportSidecar(mode=support_mode) if support_mode != "none" else None
-    for left_index in range(n):
-        for right_index in range(left_index + 1, n):
-            evidence = _build_mixed_tdc4_pair_evidence_mask_grouped(
-                rows,
-                left_index,
-                right_index,
-                predicates,
-                groups,
-                tdc4_groups,
-            )
-            multiplicities[evidence] += 1
-            if sidecar is not None:
-                if support_mode == "full":
-                    sidecar.add_pair(evidence, left_index, right_index)
-                else:
-                    sidecar.add_count(evidence, 1)
-            current = events[evidence].get(left_index, n)
-            if right_index < current:
-                events[evidence][left_index] = right_index
-
-    frontiers = {
-        evidence: build_suffix_min_frontier(n, left_events.items())
-        for evidence, left_events in events.items()
-    }
-    catalog = EvidenceCatalog(
-        n=n,
-        frontiers=frontiers,
-        multiplicities=dict(multiplicities),
-        support_sidecar=sidecar,
-        metadata={
-            "evidence_builder": "tdc4_homologous_group_enum",
-            "homologous_group_count": len(tdc4_groups),
-        },
-    )
-    if sidecar is not None:
-        sidecar.finalize(catalog)
-    return catalog
-
-
-def build_evidence_catalog_tdc4_contexts(
-    rows: Sequence[Mapping[str, object]],
-    predicates: Sequence[Predicate],
-    support_mode: str = "none",
-    index_backend: str = "auto",
-    group_order: str = "fdcd",
-    range_bin_threshold: int = 2000,
-    range_bin_count: int = 500,
-) -> EvidenceCatalog:
-    """Build tDC4 evidence through FDCD-style indexed evidence contexts."""
-
-    _validate_tdc4_mixed_predicates(predicates)
-    catalog = build_evidence_catalog_contexts(
-        rows,
-        predicates,
-        support_mode=support_mode,
-        index_backend=index_backend,
-        group_order=group_order,
-        range_bin_threshold=range_bin_threshold,
-        range_bin_count=range_bin_count,
-    )
-    metadata = {
-        **catalog.metadata,
-        "evidence_builder": "tdc4_fdcd_context",
-        "homologous_group_count": len(build_tdc4_homologous_groups(predicates)),
-    }
-    return EvidenceCatalog(
-        n=catalog.n,
-        frontiers=catalog.frontiers,
-        multiplicities=catalog.multiplicities,
-        support_sidecar=catalog.support_sidecar,
-        metadata=metadata,
-    )
-
-
-def build_evidence_catalog_tdc4_default_gt_contexts(
+def build_evidence_catalog_tdc4(
     rows: Sequence[Mapping[str, object]],
     predicates: Sequence[Predicate],
     support_mode: str = "none",
@@ -545,7 +401,7 @@ def build_evidence_catalog_tdc4_default_gt_contexts(
     range_bin_count: int = 500,
     sample_size: int = 512,
 ) -> EvidenceCatalog:
-    """Build tDC4 contexts by assuming `!=, >` and correcting exceptions."""
+    """Build tDC4 contexts from a `!=, >` base state and exact corrections."""
 
     _validate_support_mode(support_mode)
     _validate_index_backend(index_backend)
@@ -854,46 +710,6 @@ def _build_evidence_catalog_tdc4_default_gt_contexts_roaring(
     return catalog
 
 
-def build_evidence_catalog_tdc4_auto(
-    rows: Sequence[Mapping[str, object]],
-    predicates: Sequence[Predicate],
-    support_mode: str = "none",
-    row_threshold: int = TDC4_CONTEXT_ROW_THRESHOLD,
-    index_backend: str = "auto",
-    group_order: str = "default_gt_sampled",
-    range_bin_threshold: int = 2000,
-    range_bin_count: int = 500,
-    sample_size: int = 512,
-) -> EvidenceCatalog:
-    """Build tDC4 evidence through the optimized default-`!=,>` context path."""
-
-    if row_threshold < 0:
-        raise ValueError("row_threshold must be non-negative")
-    catalog = build_evidence_catalog_tdc4_default_gt_contexts(
-        rows,
-        predicates,
-        support_mode=support_mode,
-        index_backend=index_backend,
-        group_order=group_order,
-        range_bin_threshold=range_bin_threshold,
-        range_bin_count=range_bin_count,
-        sample_size=sample_size,
-    )
-    metadata = {
-        **catalog.metadata,
-        "tdc4_builder_policy": "optimized_default_gt",
-        "tdc4_context_row_threshold": row_threshold,
-        "tdc4_context_row_threshold_ignored": True,
-    }
-    return EvidenceCatalog(
-        n=catalog.n,
-        frontiers=catalog.frontiers,
-        multiplicities=catalog.multiplicities,
-        support_sidecar=catalog.support_sidecar,
-        metadata=metadata,
-    )
-
-
 def _validate_tdc4_mixed_predicates(predicates: Sequence[Predicate]) -> None:
     for predicate in predicates:
         if predicate.mode == "tdc4":
@@ -903,24 +719,6 @@ def _validate_tdc4_mixed_predicates(predicates: Sequence[Predicate]) -> None:
         if predicate.kind == "categorical" and predicate.op in {"=", "!="}:
             continue
         raise ValueError("tdc4 mixed builders require tdc4 numeric or categorical equality predicates")
-
-
-def _build_mixed_tdc4_pair_evidence_mask_grouped(
-    rows: Sequence[Mapping[str, object]],
-    left_index: int,
-    right_index: int,
-    predicates: Sequence[Predicate],
-    groups: Sequence[Any],
-    tdc4_groups: Mapping[str, Any],
-) -> int:
-    evidence = 0
-    for group in groups:
-        tdc4_group = tdc4_groups.get(group.group_id)
-        if tdc4_group is not None:
-            evidence |= build_tdc4_pair_evidence_mask_grouped(rows, left_index, right_index, (tdc4_group,))
-        else:
-            evidence |= build_group_truth_mask(rows, left_index, right_index, predicates, group)
-    return evidence
 
 
 def _mask_to_ids(mask: int) -> tuple[int, ...]:
@@ -952,297 +750,9 @@ def _validate_index_backend(index_backend: str) -> None:
         raise ValueError("index_backend must be one of: auto, roaring, set")
 
 
-def _validate_group_order(group_order: str) -> None:
-    if group_order not in {"fdcd", "natural"}:
-        raise ValueError("group_order must be one of: fdcd, natural")
-
-
 def _validate_default_gt_group_order(group_order: str) -> None:
     if group_order not in {"fdcd", "natural", "default_gt_sampled"}:
         raise ValueError("group_order must be one of: fdcd, natural, default_gt_sampled")
-
-
-def build_evidence_catalog_contexts(
-    rows: Sequence[Mapping[str, object]],
-    predicates: Sequence[Predicate],
-    support_mode: str = "none",
-    index_backend: str = "auto",
-    group_order: str = "fdcd",
-    range_bin_threshold: int = 2000,
-    range_bin_count: int = 500,
-) -> EvidenceCatalog:
-    """Build frontiers through indexed 3DC-style evidence contexts."""
-
-    _validate_support_mode(support_mode)
-    _validate_index_backend(index_backend)
-    _validate_group_order(group_order)
-    if index_backend == "roaring":
-        indexes = build_roaring_column_indexes(
-            rows,
-            predicates,
-            range_bin_threshold=range_bin_threshold,
-            range_bin_count=range_bin_count,
-        )
-        return _build_evidence_catalog_contexts_roaring(
-            rows,
-            predicates,
-            indexes,
-            support_mode=support_mode,
-            requested_backend=index_backend,
-            group_order=group_order,
-            range_bin_threshold=range_bin_threshold,
-        )
-    if index_backend == "auto" and RoaringBitMap is not None:
-        indexes = build_roaring_column_indexes(
-            rows,
-            predicates,
-            range_bin_threshold=range_bin_threshold,
-            range_bin_count=range_bin_count,
-        )
-        return _build_evidence_catalog_contexts_roaring(
-            rows,
-            predicates,
-            indexes,
-            support_mode=support_mode,
-            requested_backend=index_backend,
-            group_order=group_order,
-            range_bin_threshold=range_bin_threshold,
-        )
-    indexes = build_column_indexes(rows, predicates)
-    return _build_evidence_catalog_contexts_indexed(
-        rows,
-        predicates,
-        indexes,
-        support_mode=support_mode,
-        requested_backend=index_backend,
-        group_order=group_order,
-        range_bin_threshold=range_bin_threshold,
-        range_bin_count=range_bin_count,
-    )
-
-
-def build_evidence_catalog_contexts_naive(
-    rows: Sequence[Mapping[str, object]],
-    predicates: Sequence[Predicate],
-    support_mode: str = "none",
-) -> EvidenceCatalog:
-    """Build frontiers through 3DC-style evidence contexts.
-
-    This first implementation uses Python sets as exact bitmaps. It follows the
-    design's reconciliation semantics but deliberately avoids optimized bitmap
-    indexes until the correctness oracle is locked down.
-    """
-
-    _validate_support_mode(support_mode)
-    n = len(rows)
-    groups = group_predicates(predicates)
-    events: dict[int, dict[int, int]] = defaultdict(dict)
-    multiplicities: Counter[int] = Counter()
-    sidecar = EvidenceSupportSidecar(mode=support_mode) if support_mode != "none" else None
-
-    for left_index in range(n - 1):
-        contexts: dict[int, set[int]] = {0: set(range(left_index + 1, n))}
-        for group in groups:
-            cleared_mask = ~group_mask(group)
-            next_contexts: dict[int, set[int]] = defaultdict(set)
-            for evidence, right_indices in contexts.items():
-                cells: dict[int, set[int]] = defaultdict(set)
-                for right_index in right_indices:
-                    truth = build_group_truth_mask(rows, left_index, right_index, predicates, group)
-                    cells[truth].add(right_index)
-                for truth, cell_right_indices in cells.items():
-                    reconciled = (evidence & cleared_mask) | truth
-                    next_contexts[reconciled].update(cell_right_indices)
-            contexts = dict(next_contexts)
-
-        for evidence, right_indices in contexts.items():
-            if not right_indices:
-                continue
-            right_min = min(right_indices)
-            multiplicities[evidence] += len(right_indices)
-            if sidecar is not None:
-                if support_mode == "full":
-                    for right_index in right_indices:
-                        sidecar.add_pair(evidence, left_index, right_index)
-                else:
-                    sidecar.add_count(evidence, len(right_indices))
-            current = events[evidence].get(left_index, n)
-            if right_min < current:
-                events[evidence][left_index] = right_min
-
-    frontiers = {
-        evidence: build_suffix_min_frontier(n, left_events.items())
-        for evidence, left_events in events.items()
-    }
-    catalog = EvidenceCatalog(n=n, frontiers=frontiers, multiplicities=dict(multiplicities), support_sidecar=sidecar)
-    if sidecar is not None:
-        sidecar.finalize(catalog)
-    return catalog
-
-
-def _build_evidence_catalog_contexts_indexed(
-    rows: Sequence[Mapping[str, object]],
-    predicates: Sequence[Predicate],
-    indexes: ColumnIndexes,
-    support_mode: str = "none",
-    requested_backend: str = "set",
-    group_order: str = "fdcd",
-    range_bin_threshold: int = 2000,
-    range_bin_count: int = 500,
-) -> EvidenceCatalog:
-    _validate_support_mode(support_mode)
-    n = len(rows)
-    groups = _ordered_groups(rows, predicates, indexes.distinct_counts, group_order)
-    events: dict[int, dict[int, int]] = defaultdict(dict)
-    multiplicities: Counter[int] = Counter()
-    sidecar = EvidenceSupportSidecar(mode=support_mode) if support_mode != "none" else None
-    context_counts_by_left: list[int] = []
-    split_operation_count = 0
-    split_cardinality_total = 0
-
-    for left_index in range(n - 1):
-        contexts: dict[int, set[int]] = {0: set(range(left_index + 1, n))}
-        for group in groups:
-            cleared_mask = ~group_mask(group)
-            next_contexts: dict[int, set[int]] = defaultdict(set)
-            for evidence, right_indices in contexts.items():
-                split_operation_count += 1
-                cells = split_by_group_truth_indexed(rows, left_index, right_indices, predicates, group, indexes)
-                for truth, cell_right_indices in cells.items():
-                    if not cell_right_indices:
-                        continue
-                    split_cardinality_total += len(cell_right_indices)
-                    reconciled = (evidence & cleared_mask) | truth
-                    next_contexts[reconciled].update(cell_right_indices)
-            contexts = dict(next_contexts)
-        context_counts_by_left.append(len(contexts))
-
-        for evidence, right_indices in contexts.items():
-            if not right_indices:
-                continue
-            right_min = min(right_indices)
-            multiplicities[evidence] += len(right_indices)
-            if sidecar is not None:
-                if support_mode == "full":
-                    for right_index in right_indices:
-                        sidecar.add_pair(evidence, left_index, right_index)
-                else:
-                    sidecar.add_count(evidence, len(right_indices))
-            current = events[evidence].get(left_index, n)
-            if right_min < current:
-                events[evidence][left_index] = right_min
-
-    frontiers = {
-        evidence: build_suffix_min_frontier(n, left_events.items())
-        for evidence, left_events in events.items()
-    }
-    metadata = _context_metadata(
-        requested_backend=requested_backend,
-        actual_backend="set",
-        group_order=group_order,
-        equality_index_count=sum(len(value_map) for value_map in indexes.equality.values()),
-        numeric_range_index_count=len(indexes.numeric_sorted),
-        range_index_modes={attr: "sorted_scan" for attr in indexes.numeric_sorted},
-        distinct_counts=indexes.distinct_counts,
-        context_counts_by_left=context_counts_by_left,
-        split_operation_count=split_operation_count,
-        split_cardinality_total=split_cardinality_total,
-        range_bin_threshold=range_bin_threshold,
-        range_bin_count=range_bin_count,
-        roaring_available=RoaringBitMap is not None,
-    )
-    catalog = EvidenceCatalog(
-        n=n,
-        frontiers=frontiers,
-        multiplicities=dict(multiplicities),
-        support_sidecar=sidecar,
-        metadata=metadata,
-    )
-    if sidecar is not None:
-        sidecar.finalize(catalog)
-    return catalog
-
-
-def _build_evidence_catalog_contexts_roaring(
-    rows: Sequence[Mapping[str, object]],
-    predicates: Sequence[Predicate],
-    indexes: RoaringColumnIndexes,
-    support_mode: str = "none",
-    requested_backend: str = "roaring",
-    group_order: str = "fdcd",
-    range_bin_threshold: int = 2000,
-) -> EvidenceCatalog:
-    _validate_support_mode(support_mode)
-    n = len(rows)
-    groups = _ordered_groups(rows, predicates, indexes.distinct_counts, group_order)
-    events: dict[int, dict[int, int]] = defaultdict(dict)
-    multiplicities: Counter[int] = Counter()
-    sidecar = EvidenceSupportSidecar(mode=support_mode) if support_mode != "none" else None
-    context_counts_by_left: list[int] = []
-    split_operation_count = 0
-    split_cardinality_total = 0
-
-    for left_index in range(n - 1):
-        contexts: dict[int, Any] = {0: _roaring_range(left_index + 1, n)}
-        for group in groups:
-            cleared_mask = ~group_mask(group)
-            next_contexts: dict[int, Any] = defaultdict(_empty_roaring_bitmap)
-            for evidence, right_indices in contexts.items():
-                split_operation_count += 1
-                cells = split_by_group_truth_roaring(rows, left_index, right_indices, predicates, group, indexes)
-                for truth, cell_right_indices in cells.items():
-                    if len(cell_right_indices) == 0:
-                        continue
-                    split_cardinality_total += len(cell_right_indices)
-                    reconciled = (evidence & cleared_mask) | truth
-                    _bitmap_update(next_contexts[reconciled], cell_right_indices)
-            contexts = dict(next_contexts)
-        context_counts_by_left.append(len(contexts))
-
-        for evidence, right_indices in contexts.items():
-            if len(right_indices) == 0:
-                continue
-            right_min = min(right_indices)
-            multiplicities[evidence] += len(right_indices)
-            if sidecar is not None:
-                if support_mode == "full":
-                    for right_index in right_indices:
-                        sidecar.add_pair(evidence, left_index, right_index)
-                else:
-                    sidecar.add_count(evidence, len(right_indices))
-            current = events[evidence].get(left_index, n)
-            if right_min < current:
-                events[evidence][left_index] = right_min
-
-    frontiers = {
-        evidence: build_suffix_min_frontier(n, left_events.items())
-        for evidence, left_events in events.items()
-    }
-    metadata = _context_metadata(
-        requested_backend=requested_backend,
-        actual_backend="roaring",
-        group_order=group_order,
-        equality_index_count=sum(len(value_map) for value_map in indexes.equality.values()),
-        numeric_range_index_count=len(indexes.numeric_ranges),
-        range_index_modes=indexes.range_modes,
-        distinct_counts=indexes.distinct_counts,
-        context_counts_by_left=context_counts_by_left,
-        split_operation_count=split_operation_count,
-        split_cardinality_total=split_cardinality_total,
-        range_bin_threshold=range_bin_threshold,
-        range_bin_count=indexes.bin_count,
-        roaring_available=True,
-    )
-    catalog = EvidenceCatalog(
-        n=n,
-        frontiers=frontiers,
-        multiplicities=dict(multiplicities),
-        support_sidecar=sidecar,
-        metadata=metadata,
-    )
-    if sidecar is not None:
-        sidecar.finalize(catalog)
-    return catalog
 
 
 def split_by_group_truth_indexed(
@@ -1560,7 +1070,7 @@ def _ordered_default_gt_groups(
 
     groups = tuple(group_predicates(predicates))
     original_order = {group.group_id: index for index, group in enumerate(groups)}
-    sampled_rates = _estimate_default_gt_correction_rates(rows, predicates, groups, indexes, sample_size)
+    sampled_rates = _sample_default_gt_correction_rates(rows, predicates, groups, indexes, sample_size)
     fdcd_order = _ordered_groups(rows, predicates, indexes.distinct_counts, "fdcd")
     non_tdc4_groups = [group for group in fdcd_order if not _is_tdc4_group(predicates, group)]
     tdc4_groups = [group for group in groups if _is_tdc4_group(predicates, group)]
@@ -1574,7 +1084,7 @@ def _ordered_default_gt_groups(
     return tuple(non_tdc4_groups + tdc4_groups), dict(sorted(sampled_rates.items()))
 
 
-def _estimate_default_gt_correction_rates(
+def _sample_default_gt_correction_rates(
     rows: Sequence[Mapping[str, object]],
     predicates: Sequence[Predicate],
     groups: Sequence[Any],

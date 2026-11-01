@@ -2,16 +2,6 @@ schema_version = 1
 dataset_id = "ts_mocap_7"
 data_kind = "time_series"
 data_file = "ts_7.csv"
-inspection_date = "2026-06-23"
-inspection_basis = ["Generated for 05 multidataset latest protocol", "CSV header", "row count"]
-
-[statistics]
-tuple_count = 5674
-attribute_count = 8
-usable_attribute_count = 8
-numeric_attribute_count = 7
-character_attribute_count = 1
-unknown_attribute_count = 0
 
 [order]
 natural_order = true
@@ -28,8 +18,3 @@ candidate_attributes = ["lhumerus", "rhumerus", "lfemur", "rfemur"]
 cross_attribute_comparison_groups = [["lhumerus", "rhumerus"], ["lfemur", "rfemur"]]
 label_attributes = ["activity", "change_point_flag"]
 excluded_attributes = ["ts_id", "time_index", "activity", "change_point_flag"]
-
-[notes]
-items = [
-  "Cross-attribute comparisons follow the formal experiment plan: left/right humerus and left/right femur pairs.",
-]

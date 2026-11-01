@@ -1,0 +1,16 @@
+family,subset,nonempty_spans,common_spans,shift_percent,retention_percent,added_pair_violation_rate_percent
+HAS,all,53,63,1,86.60,0.76
+HAS,all,53,63,2,72.07,1.93
+HAS,all,53,63,5,53.59,3.86
+MoCap,all,31,61,1,82.12,0.37
+MoCap,all,31,61,2,66.93,0.84
+MoCap,all,31,61,5,51.81,2.04
+Art,all,6,30,1,58.48,1.74
+Art,all,6,30,2,41.67,5.19
+Art,all,6,30,5,25.00,16.56
+Occupancy,all,33,33,1,100.00,0.00
+Occupancy,all,33,33,2,87.16,4.67
+Occupancy,all,33,33,5,85.42,9.09
+Occupancy,local,14,33,1,100.00,0.00
+Occupancy,local,14,33,2,38.89,22.54
+Occupancy,local,14,33,5,31.94,43.37

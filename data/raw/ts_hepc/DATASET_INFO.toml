@@ -1,0 +1,18 @@
+schema_version = 1
+dataset_id = "ts_hepc"
+data_kind = "time_series"
+data_file = "household_power_consumption.csv"
+
+[order]
+natural_order = true
+order_keys = ["timestamp"]
+
+[attributes]
+numeric = ["Global_active_power", "Global_reactive_power", "Voltage", "Global_intensity", "Sub_metering_1", "Sub_metering_2", "Sub_metering_3"]
+character = ["timestamp"]
+
+[predicate_space]
+candidate_attributes = ["Global_active_power", "Global_reactive_power", "Voltage", "Global_intensity", "Sub_metering_1", "Sub_metering_2", "Sub_metering_3"]
+cross_attribute_comparison_groups = []
+label_attributes = []
+excluded_attributes = ["timestamp"]

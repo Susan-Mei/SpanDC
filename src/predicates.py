@@ -1,4 +1,4 @@
-"""Classical six-operator predicate semantics for time-direction DCs."""
+"""Predicate semantics for time-direction DCs."""
 
 from __future__ import annotations
 
@@ -7,16 +7,8 @@ from itertools import product
 from typing import Any, Iterable, Mapping, Sequence
 
 
-NUMERIC_OPERATORS = ("=", "!=", "<", "<=", ">", ">=")
 TDC4_NUMERIC_OPERATORS = ("=", "!=", "<", ">")
 CATEGORICAL_OPERATORS = ("=", "!=")
-TDC4_NUMERIC_CELLS = (
-    frozenset(("!=", "<")),
-    frozenset(("=", "<")),
-    frozenset(("=", "<", ">")),
-    frozenset(("=", ">")),
-    frozenset(("!=", ">")),
-)
 RELATIONS = frozenset(("eq", "lt", "gt"))
 OP_RELATIONS = {
     "=": frozenset(("eq",)),
@@ -79,75 +71,6 @@ class TDC4HomologousGroup:
     neq_mask: int
     lt_mask: int
     gt_mask: int
-
-
-def build_predicate_space(
-    rows: Sequence[Mapping[str, Any]],
-    attributes: Sequence[str] | None = None,
-    numeric_attributes: Iterable[str] | None = None,
-    categorical_attributes: Iterable[str] | None = None,
-    directed_pairs: Iterable[tuple[str, str]] | None = None,
-    include_cross_attributes: bool = False,
-) -> list[Predicate]:
-    """Build one global predicate space.
-
-    This first prototype implements the no-threshold classical DC language:
-    numeric groups use all six operators, and categorical groups use `{=, !=}`.
-    Predicate pairs are directed because tuple pairs are time-directional.
-    """
-
-    if not rows:
-        raise ValueError("rows must not be empty")
-    if attributes is None:
-        attributes = tuple(rows[0].keys())
-    else:
-        attributes = tuple(attributes)
-
-    inferred_numeric = {
-        attr
-        for attr in attributes
-        if all(isinstance(row[attr], (int, float)) and not isinstance(row[attr], bool) for row in rows)
-    }
-    numeric = set(numeric_attributes) if numeric_attributes is not None else inferred_numeric
-    categorical = set(categorical_attributes) if categorical_attributes is not None else set(attributes) - numeric
-    if numeric & categorical:
-        raise ValueError(f"attributes cannot be both numeric and categorical: {sorted(numeric & categorical)}")
-
-    if directed_pairs is None:
-        if include_cross_attributes:
-            pairs = tuple(product(attributes, attributes))
-        else:
-            pairs = tuple((attr, attr) for attr in attributes)
-    else:
-        pairs = tuple(directed_pairs)
-
-    predicates: list[Predicate] = []
-    seen_pairs: set[tuple[str, str]] = set()
-    for left_attr, right_attr in pairs:
-        if (left_attr, right_attr) in seen_pairs:
-            continue
-        seen_pairs.add((left_attr, right_attr))
-        if left_attr in numeric and right_attr in numeric:
-            kind = "numeric"
-            operators = NUMERIC_OPERATORS
-        elif left_attr in categorical and right_attr in categorical:
-            kind = "categorical"
-            operators = CATEGORICAL_OPERATORS
-        else:
-            continue
-        group_id = f"{left_attr}||{right_attr}"
-        for op in operators:
-            predicates.append(
-                Predicate(
-                    id=len(predicates),
-                    left_attr=left_attr,
-                    right_attr=right_attr,
-                    op=op,
-                    kind=kind,
-                    group_id=group_id,
-                )
-            )
-    return predicates
 
 
 def build_tdc4_predicate_space(
@@ -268,7 +191,7 @@ def tdc4_group_mask_by_predicate(predicates: Sequence[Predicate]) -> dict[int, i
 
 
 def build_tdc4_homologous_groups(predicates: Sequence[Predicate]) -> tuple[TDC4HomologousGroup, ...]:
-    """Return tDC4 homologous groups for paper-style grouped evidence segments."""
+    """Return tDC4 homologous groups for grouped evidence segments."""
 
     groups: list[TDC4HomologousGroup] = []
     for group in group_predicates(predicates):
@@ -338,45 +261,6 @@ def evaluate_tdc4_predicate(left_value: Any, op: str, right_value: Any, lower: f
     raise ValueError(f"unsupported tdc4 operator: {op}")
 
 
-def tdc4_homologous_group_truth_mask(left_value: Any, right_value: Any, group: TDC4HomologousGroup) -> int:
-    """Compute one tDC4 evidence segment from one delta comparison."""
-
-    d = float(left_value) - float(right_value)
-    if d < group.lower:
-        return group.neq_mask | group.lt_mask
-    if d == group.lower:
-        mask = group.eq_mask
-        if d < group.upper:
-            mask |= group.lt_mask
-        return mask
-    if d < group.upper:
-        return group.eq_mask | group.lt_mask | group.gt_mask
-    if d == group.upper:
-        mask = group.eq_mask
-        if d > group.lower:
-            mask |= group.gt_mask
-        return mask
-    return group.neq_mask | group.gt_mask
-
-
-def build_tdc4_pair_evidence_mask_grouped(
-    rows: Sequence[Mapping[str, Any]],
-    left_index: int,
-    right_index: int,
-    groups: Sequence[TDC4HomologousGroup],
-) -> int:
-    """Return tDC4 pair evidence by evaluating each homologous group once."""
-
-    if left_index >= right_index:
-        raise ValueError("time-direction evidence requires left_index < right_index")
-    left = rows[left_index]
-    right = rows[right_index]
-    mask = 0
-    for group in groups:
-        mask |= tdc4_homologous_group_truth_mask(left[group.left_attr], right[group.right_attr], group)
-    return mask
-
-
 def build_pair_evidence_mask(
     rows: Sequence[Mapping[str, Any]],
     left_index: int,
@@ -391,37 +275,6 @@ def build_pair_evidence_mask(
     left = rows[left_index]
     right = rows[right_index]
     for predicate in predicates:
-        if predicate.mode == "tdc4":
-            if predicate.lower is None or predicate.upper is None:
-                raise ValueError("tdc4 predicate requires lower/upper thresholds")
-            satisfied = evaluate_tdc4_predicate(
-                left[predicate.left_attr],
-                predicate.op,
-                right[predicate.right_attr],
-                predicate.lower,
-                predicate.upper,
-            )
-        else:
-            satisfied = evaluate_predicate(left[predicate.left_attr], predicate.op, right[predicate.right_attr])
-        if satisfied:
-            mask |= 1 << predicate.id
-    return mask
-
-
-def build_group_truth_mask(
-    rows: Sequence[Mapping[str, Any]],
-    left_index: int,
-    right_index: int,
-    predicates: Sequence[Predicate],
-    group: PredicateGroup,
-) -> int:
-    """Return the truth mask for one predicate group."""
-
-    left = rows[left_index]
-    right = rows[right_index]
-    mask = 0
-    for predicate_id in group.predicate_ids:
-        predicate = predicates[predicate_id]
         if predicate.mode == "tdc4":
             if predicate.lower is None or predicate.upper is None:
                 raise ValueError("tdc4 predicate requires lower/upper thresholds")
@@ -454,9 +307,7 @@ def normalize_candidate(mask: int, predicates: Sequence[Predicate]) -> int | Non
         if not selected:
             continue
         if any(by_id[predicate_id].mode == "tdc4" for predicate_id in selected):
-            # ponytail: align with the tRGS paper-facing tDC pruning policy;
-            # richer same-group tDCs can be re-enabled by replacing this with
-            # TDC4_NUMERIC_CELLS satisfiability.
+            # A tDC candidate contains at most one predicate from each group.
             if len(selected) > 1:
                 return None
             normalized |= 1 << selected[0]
@@ -501,19 +352,6 @@ def mask_to_text(mask: int, predicates: Sequence[Predicate]) -> tuple[str, ...]:
     return tuple(by_id[predicate_id].text for predicate_id in mask_to_ids(mask))
 
 
-def generate_canonical_candidates(
-    predicates: Sequence[Predicate],
-    max_predicate_length: int | None = None,
-) -> tuple[int, ...]:
-    """Generate all non-empty normalized candidates, one predicate per group."""
-
-    return tuple(
-        candidate
-        for level in generate_levelwise_candidates(predicates, max_predicate_length=max_predicate_length)
-        for candidate in level
-    )
-
-
 def generate_singleton_candidates(predicates: Sequence[Predicate]) -> tuple[int, ...]:
     """Generate normalized singleton candidates in canonical predicate order."""
 
@@ -532,8 +370,8 @@ def generate_levelwise_candidates(
 ) -> tuple[tuple[int, ...], ...]:
     """Generate normalized candidates grouped by predicate-set size.
 
-    The first exact implementation keeps one normalized predicate per group, so
-    candidates of size `k + 1` are produced by extending size-`k` candidates
+    Candidates contain one normalized predicate per group. Size `k + 1`
+    candidates are produced by extending size-`k` candidates
     with a later canonical predicate and requiring every direct subset to exist.
     """
 

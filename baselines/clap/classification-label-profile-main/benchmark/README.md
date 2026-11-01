@@ -1,2 +1,0 @@
-# Benchmark
-This folder contains the evaluation source codes to run the paper experiments. You can use the `simple_test.py` to explore the algorithms and `state_detection_test.py` to run the benchmark. The raw results are written into `../experiments/`.

@@ -1,4 +1,0 @@
-module: 05_breakdown
-output_type: figure
-data: results/paper/05_breakdown/data/breakdown_long.csv
-

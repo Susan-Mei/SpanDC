@@ -2,16 +2,6 @@ schema_version = 1
 dataset_id = "ts_art"
 data_kind = "time_series"
 data_file = "data_labeled.csv"
-inspection_date = "2026-06-20"
-inspection_basis = ["CSV header", "first 5 data rows", "row count"]
-
-[statistics]
-tuple_count = 31392
-attribute_count = 24
-usable_attribute_count = 24
-numeric_attribute_count = 24
-character_attribute_count = 0
-unknown_attribute_count = 0
 
 [order]
 natural_order = true
@@ -50,7 +40,6 @@ unknown = []
 ignored = []
 
 [predicate_space]
-# User-owned: edit this list. Attributes here only produce self-comparison predicates by default.
 candidate_attributes = [
   "0",
   "1",
@@ -76,17 +65,10 @@ candidate_attributes = [
   "21",
   "22",
 ]
-# Cross-attribute comparisons are disabled unless explicitly grouped here.
-# Example: [["0", "1", "2"]]
 cross_attribute_comparison_groups = []
 label_attributes = [
   "23",
 ]
 excluded_attributes = [
   "23",
-]
-
-[notes]
-items = [
-  "Column 23 is listed as a label attribute and excluded from the predicate space.",
 ]

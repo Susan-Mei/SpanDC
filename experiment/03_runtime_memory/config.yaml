@@ -1,4 +1,0 @@
-module: 03_runtime_memory
-output_type: terminal_table
-data_dir: results/paper/03_runtime_memory/data
-

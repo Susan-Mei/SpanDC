@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import heapq
 from dataclasses import dataclass
-from typing import Callable, Iterable, Sequence
+from typing import Iterable, Sequence
 
 try:
     import numpy as np
@@ -111,7 +111,7 @@ class FrontierStore:
         return self.intern_dense(out, n)
 
     def pointwise_min_auto(self, frontiers: Sequence[Frontier], n: int) -> Frontier:
-        # ponytail: empirical guard; make this configurable if future workloads disagree.
+        # Small merges are faster as run-length encoded frontiers.
         if np is not None and n < RLE_MERGE_MIN_N:
             return self.pointwise_min_dense(frontiers, n)
         return self.pointwise_min_rle(frontiers, n)
@@ -185,26 +185,6 @@ def build_suffix_min_frontier(n: int, events: Iterable[tuple[int, int]]) -> Fron
 
 def pointwise_min(frontiers: Sequence[Frontier], n: int) -> Frontier:
     return _pointwise_min_rle(frontiers, n)
-
-
-def pointwise_max(frontiers: Sequence[Frontier], n: int) -> Frontier:
-    return _pointwise_rle(frontiers, n, max)
-
-
-def _pointwise(frontiers: Sequence[Frontier], n: int, fn: Callable[[Iterable[int]], int]) -> Frontier:
-    if not frontiers:
-        return infinity_frontier(n)
-    expanded = [expand_frontier(frontier, n) for frontier in frontiers]
-    return compress_values([fn(values[index] for values in expanded) for index in range(n)])
-
-
-def _pointwise_rle(frontiers: Sequence[Frontier], n: int, fn: Callable[[Iterable[int]], int]) -> Frontier:
-    if not frontiers:
-        return infinity_frontier(n)
-    result = frontiers[0]
-    for frontier in frontiers[1:]:
-        result = _pointwise_two(result, frontier, fn)
-    return result
 
 
 def _pointwise_min_rle(frontiers: Sequence[Frontier], n: int) -> Frontier:
@@ -284,29 +264,6 @@ def _pointwise_min_two(left: Frontier, right: Frontier) -> Frontier:
         end = min(left_run.end, right_run.end)
         if start <= end:
             _append_run(out, Run(start=start, end=end, value=min(left_run.value, right_run.value)))
-        if left_run.end <= right_run.end:
-            left_pos += 1
-        if right_run.end <= left_run.end:
-            right_pos += 1
-    return tuple(out)
-
-
-def _pointwise_two(left: Frontier, right: Frontier, fn: Callable[[Iterable[int]], int]) -> Frontier:
-    if not left:
-        return right
-    if not right:
-        return left
-
-    out: list[Run] = []
-    left_pos = 0
-    right_pos = 0
-    while left_pos < len(left) and right_pos < len(right):
-        left_run = left[left_pos]
-        right_run = right[right_pos]
-        start = max(left_run.start, right_run.start)
-        end = min(left_run.end, right_run.end)
-        if start <= end:
-            _append_run(out, Run(start=start, end=end, value=fn((left_run.value, right_run.value))))
         if left_run.end <= right_run.end:
             left_pos += 1
         if right_run.end <= left_run.end:

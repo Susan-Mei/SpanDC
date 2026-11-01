@@ -1,0 +1,18 @@
+schema_version = 1
+dataset_id = "ts_fantasia"
+data_kind = "time_series"
+data_file = "f1y05.csv"
+
+[order]
+natural_order = true
+order_keys = ["sample"]
+
+[attributes]
+numeric = ["sample", "ecg", "respiration"]
+character = []
+
+[predicate_space]
+candidate_attributes = ["ecg", "respiration"]
+cross_attribute_comparison_groups = []
+label_attributes = []
+excluded_attributes = ["sample"]
